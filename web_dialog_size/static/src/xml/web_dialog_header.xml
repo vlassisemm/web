@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-inherit="web.Dialog" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call-slot='header']" position="attributes">
+            <attribute name="dialogSize">this.size</attribute>
+            <attribute name="toggleDialogSize">() => this.toggleDialogSize()</attribute>
+        </xpath>
+        <xpath expr="//t[@t-call='web.Dialog.header']" position="attributes">
+            <attribute name="dialogSize">this.size</attribute>
+            <attribute name="toggleDialogSize">() => this.toggleDialogSize()</attribute>
+        </xpath>
+    </t>
+    <t t-inherit="web.ActionDialog" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call='web.ActionDialog.header']" position="attributes">
+            <attribute name="dialogSize">this.size</attribute>
+            <attribute name="toggleDialogSize">() => this.toggleDialogSize()</attribute>
+            <attribute name="fullscreen">this.isFullscreen</attribute>
+        </xpath>
+    </t>
+    <t t-inherit="web.SelectCreateDialog" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call='web.Dialog.header']" position="attributes">
+            <attribute name="dialogSize">scope.dialogSize</attribute>
+            <attribute name="toggleDialogSize">scope.toggleDialogSize</attribute>
+        </xpath>
+    </t>
+    <t t-inherit="web.Dialog.header" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('btn-close')]" position="before">
+            <button
+                t-if="!fullscreen and toggleDialogSize"
+                type="button"
+                class="btn oi oi-lg opacity-50 opacity-100-hover"
+                t-att-data-icon="dialogSize === 'fs' ? 'close_fullscreen' : 'expand_content'"
+                t-att-title="dialogSize === 'fs' ? 'Compress' : 'Expand'"
+                t-on-click="toggleDialogSize"
+            />
+        </xpath>
+    </t>
+</templates>
