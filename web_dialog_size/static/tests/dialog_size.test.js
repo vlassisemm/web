@@ -14,6 +14,8 @@ import {
 import {Dialog} from "@web/core/dialog/dialog";
 import {browser} from "@web/core/browser/browser";
 
+import {ActionDialog} from "@web/webclient/actions/action_dialog";
+
 import {FormViewDialog} from "@web/views/view_dialogs/form_view_dialog";
 import {SelectCreateDialog} from "@web/views/view_dialogs/select_create_dialog";
 
@@ -164,3 +166,29 @@ test("late default response preserves a new manual choice", async () => {
     expect(".modal-dialog.modal-fs").toHaveCount(1);
     expect(browser.localStorage.getItem("odoo.web_dialog_size.value")).toBe("true");
 });
+
+for (const fullscreen of [false, true]) {
+    test(`action wizard header fullscreen ${fullscreen}`, async () => {
+        class Wizard extends Component {
+            static template = xml`<p class="wizard-content">Wizard content</p>`;
+        }
+        assignDialogTestEnv();
+        await mountWithCleanup(ActionDialog, {
+            props: {ActionComponent: Wizard, title: "Wizard", fullscreen},
+        });
+        expect(".wizard-content").toHaveText("Wizard content");
+        if (fullscreen) {
+            expect('button[data-icon="arrow_back"]').toHaveCount(1);
+            expect(
+                'button[data-icon="expand_content"]:not(.o_expand_button)'
+            ).toHaveCount(0);
+        } else {
+            await contains(
+                'button[data-icon="expand_content"]:not(.o_expand_button)'
+            ).click();
+            expect(".modal-dialog.modal-fs").toHaveCount(1);
+            await contains('button[data-icon="close_fullscreen"]').click();
+            expect(".modal-dialog.modal-lg").toHaveCount(1);
+        }
+    });
+}

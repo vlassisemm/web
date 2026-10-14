@@ -10,6 +10,13 @@
             <attribute name="toggleDialogSize">() => this.toggleDialogSize()</attribute>
         </xpath>
     </t>
+    <t t-inherit="web.ActionDialog" t-inherit-mode="extension">
+        <xpath expr="//t[@t-call='web.ActionDialog.header']" position="attributes">
+            <attribute name="dialogSize">this.size</attribute>
+            <attribute name="toggleDialogSize">() => this.toggleDialogSize()</attribute>
+            <attribute name="fullscreen">this.isFullscreen</attribute>
+        </xpath>
+    </t>
     <t t-inherit="web.SelectCreateDialog" t-inherit-mode="extension">
         <xpath expr="//t[@t-call='web.Dialog.header']" position="attributes">
             <attribute name="dialogSize">scope.dialogSize</attribute>
