@@ -7,8 +7,7 @@ from odoo.addons.web.tests.test_js import unit_test_error_checker
 class TestRefresherBrowser(HttpCase):
     def test_desktop(self):
         self.browser_js(
-            "/web/tests?headless&loglevel=2&preset=desktop&timeout=15000"
-            "&id=e497695d",
+            "/web/tests?headless&loglevel=2&preset=desktop&timeout=15000&id=e497695d",
             "",
             "",
             login="admin",

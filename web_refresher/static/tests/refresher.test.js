@@ -1,9 +1,18 @@
-import {advanceTime, expect, test} from "@odoo/hoot";
+import "@web_refresher/js/control_panel.esm";
 import {Component, xml} from "@odoo/owl";
-import {assignTestEnv, contains, defineModels, getService, models, mountWithCleanup, mountWithSearch, patchWithCleanup} from "@web/../tests/web_test_helpers";
+import {advanceTime, expect, test} from "@odoo/hoot";
+import {
+    assignTestEnv,
+    contains,
+    defineModels,
+    getService,
+    models,
+    mountWithCleanup,
+    mountWithSearch,
+    patchWithCleanup,
+} from "@web/../tests/web_test_helpers";
 import {ControlPanel} from "@web/search/control_panel/control_panel";
 import {Refresher} from "@web_refresher/js/refresher.esm";
-import "@web_refresher/js/control_panel.esm";
 
 class Foo extends models.Model {}
 defineModels([Foo]);
@@ -30,14 +39,27 @@ test("search refresh is debounced and animated", async () => {
 });
 
 test("pager reload preserves offset and limit before search fallback", async () => {
-    await mountRefresher({searchModel: {search: () => expect.step("search")}, pagerProps: {offset: 20, limit: 10, onUpdate: (values) => {expect(values).toEqual({offset: 20, limit: 10}); expect.step("pager");}}});
+    await mountRefresher({
+        searchModel: {search: () => expect.step("search")},
+        pagerProps: {
+            offset: 20,
+            limit: 10,
+            onUpdate: (values) => {
+                expect(values).toEqual({offset: 20, limit: 10});
+                expect.step("pager");
+            },
+        },
+    });
     await contains(".oe_pager_refresh").click();
     await advanceTime(250);
     expect.verifySteps(["pager"]);
 });
 
 test("invalid pager falls back to search", async () => {
-    await mountRefresher({searchModel: {search: () => expect.step("search")}, pagerProps: {}});
+    await mountRefresher({
+        searchModel: {search: () => expect.step("search")},
+        pagerProps: {},
+    });
     await contains(".oe_pager_refresh").click();
     await advanceTime(250);
     expect.verifySteps(["search"]);
@@ -49,19 +71,36 @@ test("control panel mounts refresher for normal views", async () => {
 });
 
 test("settings control panel omits refresher", async () => {
-    await mountWithSearch(ControlPanel, {resModel: "foo"}, {viewSubType: "base_settings"});
+    await mountWithSearch(
+        ControlPanel,
+        {resModel: "foo"},
+        {viewSubType: "base_settings"}
+    );
     expect(".oe_pager_refresh").toHaveCount(0);
 });
 
 for (const hasHistory of [false, true]) {
     test(`client action refresh with history ${hasHistory}`, async () => {
         const action = {type: "ir.actions.client", tag: "test_client"};
-        assignTestEnv({config: {breadcrumbs: hasHistory ? [{jsId: "previous"}, {jsId: "current"}] : []}});
+        assignTestEnv({
+            config: {
+                breadcrumbs: hasHistory ? [{jsId: "previous"}, {jsId: "current"}] : [],
+            },
+        });
         await mountRefresher({});
         patchWithCleanup(getService("action"), {
-            get currentController() {return {action};},
-            restore: async (jsId) => {expect(jsId).toBe("current"); expect.step("restore");},
-            doAction: (value, options) => {expect(value).toBe(action); expect(options).toEqual(hasHistory ? {} : {clearBreadcrumbs: true}); expect.step("action");},
+            get currentController() {
+                return {action};
+            },
+            restore: async (jsId) => {
+                expect(jsId).toBe("current");
+                expect.step("restore");
+            },
+            doAction: (value, options) => {
+                expect(value).toBe(action);
+                expect(options).toEqual(hasHistory ? {} : {clearBreadcrumbs: true});
+                expect.step("action");
+            },
         });
         await contains(".oe_pager_refresh").click();
         await advanceTime(250);
