@@ -1,16 +1,17 @@
 import "@web_refresher/js/control_panel.esm";
-import {Component, xml} from "@odoo/owl";
+import {Component, onMounted, useProps, xml} from "@odoo/owl";
 import {advanceTime, expect, test} from "@odoo/hoot";
 import {
-    assignTestEnv,
     contains,
     defineModels,
     getService,
     models,
     mountWithCleanup,
     mountWithSearch,
-    patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
+import {registry} from "@web/core/registry";
+import {WebClient} from "@web/webclient/webclient";
+
 import {ControlPanel} from "@web/search/control_panel/control_panel";
 import {Refresher} from "@web_refresher/js/refresher.esm";
 
@@ -79,31 +80,39 @@ test("settings control panel omits refresher", async () => {
     expect(".oe_pager_refresh").toHaveCount(0);
 });
 
-for (const hasHistory of [false, true]) {
-    test(`client action refresh with history ${hasHistory}`, async () => {
-        const action = {type: "ir.actions.client", tag: "test_client"};
-        assignTestEnv({
-            config: {
-                breadcrumbs: hasHistory ? [{jsId: "previous"}, {jsId: "current"}] : [],
-            },
-        });
-        await mountRefresher({});
-        patchWithCleanup(getService("action"), {
-            get currentController() {
-                return {action};
-            },
-            restore: async (jsId) => {
-                expect(jsId).toBe("current");
-                expect.step("restore");
-            },
-            doAction: (value, options) => {
-                expect(value).toBe(action);
-                expect(options).toEqual(hasHistory ? {} : {clearBreadcrumbs: true});
-                expect.step("action");
-            },
-        });
+test("repeated client action refresh preserves actual history", async () => {
+    class ClientAction extends Component {
+        static components = {ControlPanel};
+        static template = xml`<div><ControlPanel/><span class="client-label" t-out="this.props.action.name"/></div>`;
+        props = useProps();
+        setup() {
+            onMounted(() => this.env.config.setDisplayName(this.props.action.name));
+        }
+    }
+    registry.category("actions").add("refresher_test_action", ClientAction);
+    await mountWithCleanup(WebClient);
+    const action = getService("action");
+    await action.doAction({
+        type: "ir.actions.client",
+        tag: "refresher_test_action",
+        name: "First",
+    });
+    await contains(".oe_pager_refresh").click();
+    await advanceTime(250);
+    expect(".client-label").toHaveText("First");
+    expect(".o_breadcrumb .breadcrumb-item, .o_breadcrumb .active").toHaveCount(1);
+    await action.doAction({
+        type: "ir.actions.client",
+        tag: "refresher_test_action",
+        name: "Second",
+    });
+    expect(".o_breadcrumb .breadcrumb-item, .o_breadcrumb .active").toHaveCount(2);
+    for (let index = 0; index < 2; index++) {
         await contains(".oe_pager_refresh").click();
         await advanceTime(250);
-        expect.verifySteps(hasHistory ? ["restore", "action"] : ["action"]);
-    });
-}
+        expect(".client-label").toHaveText("Second");
+        expect(".o_breadcrumb .breadcrumb-item, .o_breadcrumb .active").toHaveCount(2);
+    }
+    await contains(".o_breadcrumb .breadcrumb-item:first").click();
+    expect(".client-label").toHaveText("First");
+});

@@ -96,14 +96,9 @@ export class Refresher extends Component {
      */
     async refreshReport() {
         const viewAction = this.action.currentController.action;
-        const options = {};
-        if (this.env.config.breadcrumbs.length > 1) {
-            const breadcrumb = this.env.config.breadcrumbs.at(-1);
-            await this.action.restore(breadcrumb.jsId);
-        } else {
-            options.clearBreadcrumbs = true;
-        }
-        this.action.doAction(viewAction, options);
+        return this.action.doAction(viewAction, {
+            stackPosition: "replaceCurrentAction",
+        });
     }
 
     async onClickRefresh() {
