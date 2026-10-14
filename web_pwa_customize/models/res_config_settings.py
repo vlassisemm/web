@@ -1,13 +1,11 @@
 # Copyright 2024 Tecnativa - Víctor Martínez
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl).
-import base64
 import io
-import sys
 
 from PIL import Image
 
 from odoo import api, exceptions, fields, models
-from odoo.tools.mimetypes import guess_mimetype
+from odoo.tools import BinaryBytes
 
 
 class ResConfigSettings(models.TransientModel):
@@ -34,7 +32,7 @@ class ResConfigSettings(models.TransientModel):
             .sudo()
             .search([("url", "like", self._pwa_icon_url_base + ".")])
         )
-        res["pwa_icon"] = pwa_icon_attachment.datas if pwa_icon_attachment else False
+        res["pwa_icon"] = pwa_icon_attachment.raw if pwa_icon_attachment else False
         return res
 
     @api.model
@@ -46,10 +44,7 @@ class ResConfigSettings(models.TransientModel):
         return res
 
     def _unpack_icon(self, icon):
-        # Wrap decoded_icon in BytesIO object
-        decoded_icon = base64.b64decode(icon)
-        icon_bytes = io.BytesIO(decoded_icon)
-        return Image.open(icon_bytes)
+        return Image.open(icon.open())
 
     def _write_icon_to_attachment(self, extension, mimetype, size=None):
         url = self._pwa_icon_url_base + extension
@@ -60,15 +55,14 @@ class ResConfigSettings(models.TransientModel):
             resized_image = image.resize(size)
             icon_bytes_output = io.BytesIO()
             resized_image.save(icon_bytes_output, format=extension.lstrip(".").upper())
-            icon = base64.b64encode(icon_bytes_output.getvalue())
+            icon = BinaryBytes(icon_bytes_output.getvalue())
             url = f"{self._pwa_icon_url_base}{size[0]!s}x{size[1]!s}{extension}"
         # Retreive existing attachment
         attachment_model = self.env["ir.attachment"].sudo()
         attachment = attachment_model.search([("url", "like", url)])
         # Write values to ir_attachment
         values = {
-            "datas": icon,
-            "db_datas": icon,
+            "raw": icon,
             "url": url,
             "name": url,
             "type": "binary",
@@ -95,15 +89,13 @@ class ResConfigSettings(models.TransientModel):
                 pwa_icon_ir_attachments.unlink()
             return res
         # Fail if icon provided is larger than 2mb
-        if sys.getsizeof(self.pwa_icon) > 2196608:
+        if self.pwa_icon.size > 2 * 1024 * 1024:
             raise exceptions.UserError(
                 self.env._("You can't upload a file with more than 2 MB.")
             )
         # Confirm if the pwa_icon binary content is an SVG or PNG
         # and process accordingly
-        decoded_pwa_icon = base64.b64decode(self.pwa_icon)
-        # Full mimetype detection
-        pwa_icon_mimetype = guess_mimetype(decoded_pwa_icon)
+        pwa_icon_mimetype = self.pwa_icon.mimetype
         pwa_icon_extension = "." + pwa_icon_mimetype.split("/")[-1].split("+")[0]
         if not pwa_icon_mimetype.startswith(
             "image/svg"
