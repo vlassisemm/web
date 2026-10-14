@@ -10,6 +10,7 @@ import {
     many2ManyTagsField,
     many2ManyTagsFieldProps,
 } from "@web/views/fields/many2many_tags/many2many_tags_field";
+import {ConnectionLostError} from "@web/core/network/rpc";
 import {FormController} from "@web/views/form/form_controller";
 import {Many2OneReferenceField} from "@web/views/fields/many2one_reference/many2one_reference_field";
 import {evaluateBooleanExpr} from "@web/core/py_js/py";
@@ -285,18 +286,23 @@ patch(Many2XAutocomplete.prototype, {
         var options = await super.loadOptionsSource(request);
         this.field_color = this.props.fieldColor;
         this.colors = this.props.fieldColorOptions;
-        if (this.colors && this.field_color) {
+        if (this.colors && this.field_color && !this.offlinePlugin.isOffline()) {
             const recordId = (option) => option.data?.record?.id;
             var value_ids = options.map(recordId).filter(Boolean);
-            const objects = await this.orm.call(
-                this.props.resModel,
-                "search_read",
-                [],
-                {
+            let objects = [];
+            try {
+                objects = await this.orm.call(this.props.resModel, "search_read", [], {
                     domain: [["id", "in", value_ids]],
                     fields: [this.field_color],
+                });
+            } catch (error) {
+                // Color enrichment is optional; retain core suggestions if the
+                // connection drops after the name search has already succeeded.
+                if (error instanceof ConnectionLostError) {
+                    return options;
                 }
-            );
+                throw error;
+            }
             for (var index in objects) {
                 for (var index_value in options) {
                     if (recordId(options[index_value]) === objects[index].id) {

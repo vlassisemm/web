@@ -4,11 +4,17 @@ import {
     defineModels,
     defineWebModels,
     fields,
+    getService,
+    makeServerError,
+    mockOffline,
     models,
     mountView,
+    mountWithCleanup,
     onRpc,
     patchWithCleanup,
 } from "@web/../tests/web_test_helpers";
+import {Many2XAutocomplete} from "@web/views/fields/relational_utils";
+import {OfflinePlugin} from "@web/core/offline/offline_plugin";
 import {queryAll} from "@odoo/hoot-dom";
 import {runAllTimers} from "@odoo/hoot-mock";
 import {session} from "@web/session";
@@ -255,5 +261,104 @@ for (const name of ["parent_id", "tag_ids"]) {
         await contains(".o_m2o_dropdown_option_search_more").click();
         expect(".modal .o_list_view").toHaveCount(1);
         expect(".modal .o_create_button").toHaveCount(0);
+    });
+}
+
+async function selectWarehouse(name) {
+    await contains(
+        ".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option) a:contains(Acme Warehouse)"
+    ).click();
+    if (name === "parent_id") {
+        expect(".o_field_many2one input").toHaveValue("Acme Warehouse");
+    } else {
+        expect(".o_field_many2many_tags .badge").toHaveText("Acme Warehouse");
+    }
+}
+
+for (const name of ["parent_id", "tag_ids"]) {
+    test(`${name}: cached offline suggestions remain selectable with field colors`, async () => {
+        const setOffline = mockOffline();
+        await mountField(
+            "{'field_color': 'type', 'colors': {'contact': 'green', 'delivery': 'blue'}}",
+            "",
+            name
+        );
+        await search("Acme");
+        expect(
+            ".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option)"
+        ).toHaveCount(2);
+        await contains(".o_form_view").click();
+        const cached = await getService(OfflinePlugin).searchMany2XRecords(
+            "partner",
+            "Acme"
+        );
+        expect(cached.map((record) => record.display_name).sort()).toEqual([
+            "Acme",
+            "Acme Warehouse",
+        ]);
+        await setOffline(true);
+        await search("Acme Ware");
+        expect(
+            ".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option)"
+        ).toHaveCount(1);
+        expect(".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option)").toHaveText(
+            "Acme Warehouse"
+        );
+        await selectWarehouse(name);
+    });
+
+    test(`${name}: losing connection during color lookup preserves suggestions`, async () => {
+        const setOffline = mockOffline();
+        onRpc("partner", "search_read", async () => {
+            expect(getService(OfflinePlugin).isOffline()).toBe(false);
+            expect.step("color lookup disconnected");
+            await setOffline(true);
+            return new Response("", {status: 502});
+        });
+        await mountField(
+            "{'field_color': 'type', 'colors': {'contact': 'green', 'delivery': 'blue'}}",
+            "",
+            name
+        );
+        await search("Acme");
+        expect.verifySteps(["color lookup disconnected"]);
+        await contains(
+            ".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option) a:contains(Acme Warehouse)"
+        ).hover();
+        expect(
+            ".o-autocomplete--dropdown-item:not(.o_m2o_dropdown_option)"
+        ).toHaveCount(2);
+        await selectWarehouse(name);
+    });
+}
+
+for (const [name, error] of [
+    [
+        "authorization",
+        makeServerError({type: "AccessError", message: "Color lookup forbidden"}),
+    ],
+    ["unexpected", new Error("Unexpected color lookup failure")],
+]) {
+    test(`${name} color lookup errors still reject the suggestions`, async () => {
+        const autocomplete = await mountWithCleanup(Many2XAutocomplete, {
+            props: {
+                activeActions: {create: true, createEdit: true},
+                fieldString: "Partner",
+                getDomain: () => [],
+                resModel: "partner",
+                update: () => undefined,
+                fieldColor: "type",
+                fieldColorOptions: {contact: "green", delivery: "blue"},
+            },
+        });
+        patchWithCleanup(autocomplete.orm, {
+            call(model, method) {
+                if (method === "search_read") {
+                    throw error;
+                }
+                return super.call(...arguments);
+            },
+        });
+        await expect(autocomplete.loadOptionsSource("Acme")).rejects.toThrow(error);
     });
 }
