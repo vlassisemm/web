@@ -1,7 +1,8 @@
 /* Copyright 2023 Taras Shabaranskyi
  * License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl). */
 
-import {animationFrame, beforeEach, expect, test} from "@odoo/hoot";
+import "@web_responsive/components/apps_menu/apps_menu.esm";
+import {advanceTime, animationFrame, beforeEach, expect, press, test} from "@odoo/hoot";
 import {
     contains,
     defineMenus,
@@ -14,7 +15,6 @@ import {defineMailModels} from "@mail/../tests/mail_test_helpers";
 import {session} from "@web/session";
 
 // Load the patches (NavBar components) shipped by web_responsive
-import "@web_responsive/components/apps_menu/apps_menu.esm";
 
 // The web_responsive module depends on mail (its systray/chatter patches), so the mail
 // server models must be mocked for the NavBar to mount
@@ -60,4 +60,23 @@ test("has a search input", async () => {
     await mountWithCleanup(NavBar);
     await contains("button.o_grid_apps_menu__button").click();
     expect(".app-menu-container .search-input").toHaveCount(1);
+});
+
+for (const searchType of ["canonical", "fuse"]) {
+    test(`search menus using ${searchType}`, async () => {
+        session.apps_menu.search_type = searchType;
+        await mountWithCleanup(NavBar);
+        await contains("button.o_grid_apps_menu__button").click();
+        await contains(".search-input input").edit("App1");
+        await advanceTime(250);
+        expect(".search-item__name:first").toHaveText("App1");
+    });
+}
+
+test("escape closes apps menu", async () => {
+    await mountWithCleanup(NavBar);
+    await contains("button.o_grid_apps_menu__button").click();
+    await press("Escape");
+    await animationFrame();
+    expect(".app-menu-container").toHaveCount(0);
 });

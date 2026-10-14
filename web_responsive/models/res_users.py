@@ -15,6 +15,7 @@ class ResUsers(models.Model):
         ],
         default="canonical",
         required=True,
+        user_writeable=True,
     )
     apps_menu_theme = fields.Selection(
         [
@@ -23,6 +24,7 @@ class ResUsers(models.Model):
         ],
         default="milk",
         required=True,
+        user_writeable=True,
     )
     is_redirect_home = fields.Boolean(
         string="Redirect to Home",
@@ -30,6 +32,7 @@ class ResUsers(models.Model):
         compute="_compute_redirect_home",
         store=True,
         readonly=False,
+        user_writeable=True,
     )
 
     @api.depends("action_id")
