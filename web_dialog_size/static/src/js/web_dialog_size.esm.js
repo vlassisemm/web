@@ -1,4 +1,4 @@
-import {onWillRender} from "@odoo/owl";
+import {signal} from "@odoo/owl";
 import {browser} from "@web/core/browser/browser";
 import {Dialog} from "@web/core/dialog/dialog";
 import {patch} from "@web/core/utils/patch";
@@ -13,17 +13,14 @@ function triggerWindowResize() {
 patch(Dialog.prototype, {
     setup() {
         super.setup();
-        this.originalDialogSize = this.props.size;
-
         const storedValue = browser.localStorage.getItem("odoo.web_dialog_size.value");
         const lastServerValue = browser.localStorage.getItem(
             "odoo.web_dialog_size.last_server_value"
         );
-
-        if (storedValue === "true") {
-            this.dialogSize.set("fs");
-        }
-
+        // Keep the native size signal available for view arch overrides. The
+        // addon only overlays fullscreen, so restoring uses the current size.
+        this.webDialogMaximized = signal(storedValue === "true");
+        this.webDialogSizeUserToggled = false;
         const orm = useService("orm");
         orm.call("ir.config_parameter", "get_web_dialog_size_config").then((config) => {
             const serverValue = String(Boolean(config.default_maximize));
@@ -32,36 +29,30 @@ patch(Dialog.prototype, {
                     "odoo.web_dialog_size.last_server_value",
                     serverValue
                 );
-                if (storedValue === null || storedValue === lastServerValue) {
+                if (
+                    !this.webDialogSizeUserToggled &&
+                    (storedValue === null || storedValue === lastServerValue)
+                ) {
                     browser.localStorage.setItem(
                         "odoo.web_dialog_size.value",
                         serverValue
                     );
-                    this.dialogSize.set(
-                        serverValue === "true" ? "fs" : this.originalDialogSize
-                    );
+                    this.webDialogMaximized.set(serverValue === "true");
                     triggerWindowResize();
                 }
             }
         });
+    },
 
-        onWillRender(() => {
-            if (
-                browser.localStorage.getItem("odoo.web_dialog_size.value") === "true" &&
-                this.size !== "fs"
-            ) {
-                this.dialogSize.set("fs");
-            }
-        });
+    get size() {
+        return this.webDialogMaximized?.() ? "fs" : super.size;
     },
 
     toggleDialogSize() {
-        const maximize = this.size !== "fs";
-        this.dialogSize.set(maximize ? "fs" : this.originalDialogSize);
-        browser.localStorage.setItem(
-            "odoo.web_dialog_size.value",
-            maximize ? "true" : "false"
-        );
+        const maximize = !this.webDialogMaximized();
+        this.webDialogSizeUserToggled = true;
+        this.webDialogMaximized.set(maximize);
+        browser.localStorage.setItem("odoo.web_dialog_size.value", String(maximize));
         triggerWindowResize();
     },
 });
