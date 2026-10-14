@@ -8,6 +8,7 @@
     "installable": True,
     "auto_install": False,
     "assets": {
+        "web.assets_unit_tests": ["web_refresher/static/tests/**/*.test.js"],
         "web.assets_backend": [
             "web_refresher/static/src/scss/refresher.scss",
             "web_refresher/static/src/xml/refresher.xml",

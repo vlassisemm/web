@@ -98,7 +98,7 @@ export class Refresher extends Component {
         const viewAction = this.action.currentController.action;
         const options = {};
         if (this.env.config.breadcrumbs.length > 1) {
-            const breadcrumb = this.env.config.breadcrumbs.slice(-1);
+            const breadcrumb = this.env.config.breadcrumbs.at(-1);
             await this.action.restore(breadcrumb.jsId);
         } else {
             options.clearBreadcrumbs = true;
