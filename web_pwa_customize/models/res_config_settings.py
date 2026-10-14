@@ -61,7 +61,7 @@ class ResConfigSettings(models.TransientModel):
             icon_bytes_output = io.BytesIO()
             resized_image.save(icon_bytes_output, format=extension.lstrip(".").upper())
             icon = base64.b64encode(icon_bytes_output.getvalue())
-            url = f"{self._pwa_icon_url_base}{str(size[0])}x{str(size[1])}{extension}"
+            url = f"{self._pwa_icon_url_base}{size[0]!s}x{size[1]!s}{extension}"
         # Retreive existing attachment
         attachment_model = self.env["ir.attachment"].sudo()
         attachment = attachment_model.search([("url", "like", url)])
