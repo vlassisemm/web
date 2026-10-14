@@ -18,6 +18,7 @@
     "depends": ["web"],
     "installable": True,
     "assets": {
+        "web.assets_unit_tests": ["web_dialog_size/static/tests/**/*.test.js"],
         "web.assets_backend": [
             "/web_dialog_size/static/src/js/web_dialog_size.esm.js",
             (
