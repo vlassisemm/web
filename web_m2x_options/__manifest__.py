@@ -6,7 +6,7 @@
 
 {
     "name": "web_m2x_options",
-    "version": "19.0.1.0.1",
+    "version": "20.0.1.0.0",
     "category": "Web",
     "author": "initOS GmbH,"
     "ACSONE SA/NV, "
@@ -30,7 +30,8 @@
                 "web_m2x_options/static/src/views/fields/standard_field_props.esm.js",
             ),
             "web_m2x_options/static/src/components/base.xml",
-        ]
+        ],
+        "web.assets_unit_tests": ["web_m2x_options/static/tests/**/*"],
     },
     "installable": True,
 }
